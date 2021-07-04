@@ -31,7 +31,11 @@ readgeno<-function(inputfile, datatype,outputfile,
 
     p_sys<-system("plink", intern = TRUE)
 
-    if (datatype!="bed"&datatype!="ped"&datatype!="vcf") cat(paste(datatype,"not support"));return(NULL)
+    if (datatype!="bed"&datatype!="ped"&datatype!="vcf"){
+        cat(paste(datatype,"not support"))
+        return(NULL)
+        }
+
 
     if ((datatype=="bed"|datatype=="ped")&attributes(p_sys)$status != 10){
         cat("  please make sure plink soft in your enviroment path    ")
@@ -44,7 +48,7 @@ readgeno<-function(inputfile, datatype,outputfile,
     }else if(datatype=="ped"){
         datatype_cmd<-paste("plink --file", inputfile,sep = " ")
     }else if(datatype=="vcf"){
-        datatype_cmd<-paste("plink --vcf", inputfile,"--vcf-half-call 'missing' ",sep = " ")
+        datatype_cmd<-paste("plink --vcf", paste0(inputfile,".vcf"),"--vcf-half-call missing ",sep = " ")
     }
 
     fit_cmd<-""
@@ -63,34 +67,33 @@ readgeno<-function(inputfile, datatype,outputfile,
     ####
     if (screening==TRUE&(length(father)>1|length(mother)>1)){
 
-        total_cmd<-paste(datatype_cmd," --recode vcf-iid --out",inputfile,sep = " ")
+        total_cmd<-paste(datatype_cmd," --recode vcf-iid --out",paste0(outputfile,".temp"),sep = " ")
         system(total_cmd,intern = TRUE)
 
-
-        geno<-data.table::fread(paste(inputfile,"vcf",sep = "."),header=T,sep="\t")
-
+        geno<-data.table::fread(paste(outputfile,"temp","vcf",sep = "."),header=T,sep="\t")
         if (length(father)!=1&length(father)!=nrow(geno)) return("father input is wrong")
         if (length(mother)!=1&length(mother)!=nrow(geno)) return("mother input is wrong")
 
         if (length(father)==1&class(father)=="numeric") father<-geno[,(father+10)]
         if (length(mother)==1&class(mother)=="numeric") mother<-geno[,(mother+10)]
 
-        if (length(father)==nrow(geno)) father<-lapply(father, FUN = function(x)substr(x,1,3))
-        if (length(mother)==nrow(geno)) father<-lapply(mother, FUN = function(x)substr(x,1,3))
+        if (length(father)==nrow(geno)) father<-as.character(lapply(father, FUN = function(x)substr(x,1,3)))
+        if (length(mother)==nrow(geno)) mother<-as.character(lapply(mother, FUN = function(x)substr(x,1,3)))
 
         geno<-cbind(geno,father,mother)
-        write.table(geno,file=paste(inputfile,"vcf",sep="."),sep="\t",append = FALSE,row.names = FALSE,col.names = TRUE,quote = FALSE)
-        father<-(ncol(geno)-11);mother<-(ncol(geno)-10)
+        colnames(geno)<-c(colnames(geno)[1:(ncol(geno)-2)],"TempFather","TempMother")
+        write.table(geno,file=paste(outputfile,"vcf",sep="."),sep="\t",append = FALSE,row.names = FALSE,col.names = TRUE,quote = FALSE)
+        father<-(ncol(geno)-10);mother<-(ncol(geno)-9)
 
-        total_cmd<-paste("plink --vcf", inputfile,fit_cmd,"--recode vcf-iid --out",inputfile,sep = " ")
+        total_cmd<-paste("plink --vcf", paste0(outputfile,".vcf"),fit_cmd,"--recode vcf-iid --out",outputfile,sep = " ")
         system(total_cmd,intern = TRUE)
     }else if (screening==TRUE&length(father)==1&length(mother)==1){
-        total_cmd<-paste(datatype_cmd,fit_cmd," --recode vcf-iid --out",inputfile,sep = " ")
+        total_cmd<-paste(datatype_cmd,fit_cmd," --recode vcf-iid --out",outputfile,sep = " ")
         system(total_cmd,intern = TRUE)
     }
 
     # read vcf file
-    geno<-data.table::fread(paste(inputfile,"vcf",sep = "."),header=T,sep="\t")
+    ifelse(screening==FALSE,geno<-data.table::fread(paste(inputfile,"vcf",sep = "."),header=T,sep="\t"),geno<-data.table::fread(paste(outputfile,"vcf",sep = ".")))
     sample_name<-colnames(geno[,10:length(geno)])
     temp_geno<-lapply(geno[,10:length(geno)], FUN = function(x)substr(x,1,3))
     temp_geno<-as.data.frame(temp_geno)
@@ -104,27 +107,39 @@ readgeno<-function(inputfile, datatype,outputfile,
     rm(temp_geno)
 
     code_num<-ncol(geno)
-    write.table(geno[0,1:(code_num-2)],file=paste(outputfile,"txt",sep="."),sep="\t",append = FALSE,row.names = FALSE,col.names = TRUE,quote = FALSE)
+    write.table(geno[0,1:(code_num-2)],file=paste(outputfile,"temp","txt",sep="."),sep="\t",append = FALSE,row.names = FALSE,col.names = TRUE,quote = FALSE)
 
     apply(geno,MARGIN = 1,FUN=function(x){
-        f_value<-x[code_num];m_value<-x[(code_num-1)]
+        f_value<-x[code_num-1]
+        m_value<-x[code_num]
+        if(f_value=="0/0"){
+            temp_p<-x[3]
+            x[3]<-x[4];x[4]<-temp_p
+
         if (f_value!=m_value&(f_value=="1/1"|f_value=="0/0")&(m_value=="1/1"|m_value=="0/0")){
-          x[which(x %in% m_value)]<-0
-          x[which(x %in% f_value)]<-2
-          x[which(x %in% "0/1")]<-1
-          x[which(x %in% "./.")]<-NA
-          x[which(x %in% "./0")]<-NA
-          x[which(x %in% "./1")]<-NA
-          if(f_value=="0/0"){
-              temp_p<-x[3]
-              x[3]<-x[4];x[4]<-temp_p
-          }
-          write.table(x[1:(code_num-2)],file=paste(outputfile,"txt",sep="."),sep="\t",append = TRUE,row.names = FALSE,col.names = FALSE,quote = FALSE)
+            x<-as.data.frame(t(x))
+            x[,5:code_num]<-lapply(x[,5:code_num], FUN = function(a){
+                if (a==f_value) {
+                    a<-2
+                }else if(a==m_value){
+                    a<-0
+                }else if(a=="0/1"){
+                    a<-1
+                }else if(a=="./."|a=="./0"|a=="./1"){
+                    a<-NA
+                }else{
+                    print("there are something wrong")
+                }
+            })
+        }
+
+            write.table(x[,1:(code_num-2)],file=paste(outputfile,"temp","txt",sep="."),sep="\t",append = TRUE,row.names = FALSE,col.names = FALSE,quote = FALSE)
         }
     })
-    geno<-data.table::fread(paste(outputfile,"txt",sep="."),header=T,sep="\t")
+    geno<-data.table::fread(paste(outputfile,"temp","txt",sep="."),header=T,sep="\t")
     return(geno)
 }
+
 
 
 
