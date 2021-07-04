@@ -20,7 +20,8 @@ batchCallGeno(
   low = 0.2,
   high = 0.8,
   fix = TRUE,
-  fix.size = 10
+  fix.size = 10,
+  filetype = NA
 )
 }
 \arguments{
@@ -55,6 +56,8 @@ batchCallGeno(
 \item{fix}{a logical value ,default is T}
 
 \item{fix.size}{define the neighbor size to fix the error}
+
+\item{filetype}{output file type}
 }
 \value{
 files of relust
