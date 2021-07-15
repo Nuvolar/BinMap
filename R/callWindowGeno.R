@@ -20,6 +20,7 @@ callWindowGeno<-function(x,
                          window.type="number",window.size=15,
                          low=0.2,high=0.8){
     if (window.type=="number"){
+        #print(window.type=="number")
         wind_sum<- dplyr::mutate(x,group=(as.numeric(rownames(x))-1) %/% window.size) %>%
         dplyr::group_by(.data$group) %>%
         dplyr::summarise(start=min(.data$POS),end=max(.data$POS),
@@ -42,7 +43,7 @@ callWindowGeno<-function(x,
             }
         })
         wind_geno$code<-unlist(code)
-        return(wind_geno)
+
     }else if(window.type=="kb"){
 
         wind_sum<-dplyr::mutate(x,group=as.numeric(x[,2]) %/% (window.size*1000)) %>%
@@ -64,8 +65,6 @@ callWindowGeno<-function(x,
             }
         })
         wind_geno$code<-unlist(code)
-
-        return(wind_geno)
     }
-
+    return(wind_geno)
 }

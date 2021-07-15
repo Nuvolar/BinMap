@@ -22,12 +22,13 @@
 
 readgeno<-function(inputfile, datatype,outputfile,
                    screening=FALSE,
+                   father = "1/1",mother = "0/0",
                    maf=NA,
                    geno=NA,
                    mind=NA,
-                   hwe=NA,
-                   father = "1/1",
-                   mother = "0/0"){
+                   hwe=NA){
+
+    #inputfile <- RIL_inputfile;datatype <- RIL_datatype;outputfile <- RIL_outputfile;screening <- RIL_screening;father <- RIL_father;mother <- RIL_mother
 
     p_sys<-system("plink", intern = TRUE)
 
@@ -111,12 +112,14 @@ readgeno<-function(inputfile, datatype,outputfile,
 
     apply(geno,MARGIN = 1,FUN=function(x){
         f_value<-x[code_num-1]
+        #cat(f_value)
         m_value<-x[code_num]
+        #cat(m_value)
         if(f_value=="0/0"){
             temp_p<-x[3]
             x[3]<-x[4];x[4]<-temp_p
-
-        if (f_value!=m_value&(f_value=="1/1"|f_value=="0/0")&(m_value=="1/1"|m_value=="0/0")){
+        }
+        if (f_value!=m_value&((f_value=="1/1"&m_value=="0/0")|(m_value=="1/1"&f_value=="0/0"))){
             x<-as.data.frame(t(x))
             x[,5:code_num]<-lapply(x[,5:code_num], FUN = function(a){
                 if (a==f_value) {
@@ -132,9 +135,7 @@ readgeno<-function(inputfile, datatype,outputfile,
                 }
             })
         }
-
             write.table(x[,1:(code_num-2)],file=paste(outputfile,"temp","txt",sep="."),sep="\t",append = TRUE,row.names = FALSE,col.names = FALSE,quote = FALSE)
-        }
     })
     geno<-data.table::fread(paste(outputfile,"temp","txt",sep="."),header=T,sep="\t")
     return(geno)

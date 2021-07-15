@@ -23,7 +23,7 @@ outfiletype<-function(x,outputfile,filetype){
 
       a<-lapply(x[[i]],FUN = function(y){
         if (is.na(y)==TRUE){
-          "-"
+          "NA"
         }else if(y==0){
           "A"
         }else if(y==1){

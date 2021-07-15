@@ -2,15 +2,18 @@
 #'
 #' fix potential genotype error
 #'
-#' @param x a vector
+#' @param t binmap object
 #' @param fix.size define the neighbor size to fix the error
 #'
 #' @return a vector
 #' @export
 #'
 
-fixGeno <- function(x,fix.size=10){
-
+fixGeno <- function(t,fix.size=10){
+    #print(t)
+    #print(class(t))
+    x <- t$code
+    #is.na(x)
     wind.geno.rle <- rle(x)
     error.id <- which(wind.geno.rle$lengths < fix.size)
     for(i in error.id){
@@ -34,7 +37,8 @@ fixGeno <- function(x,fix.size=10){
             x[(left.id+1):right.id]<- x[left.id]
         }else if(x[left.id]==x[right.id+1]){
             x[(left.id+1):right.id] <- x[left.id]}
-      }
-  return(x)
+    }
+    t$fix_code <- x
+    return(t)
 
 }

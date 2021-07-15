@@ -28,16 +28,20 @@
 #'
 #'
 batchCallGeno<-function(inputfile, datatype,outputfile,
+                        father = "1/1",mother = "0/0",
                         screening=FALSE,
                         maf=NA,geno=NA,mind=NA,hwe=NA,
-                        father = "1/1",mother = "0/0",
                         window.type="number",window.size=15,
                         low=0.2,high=0.8,
                         fix=TRUE,fix.size=10,
                         filetype=NA
                         ){
 
-    snp_data<-readgeno(inputfile,datatype,outputfile,screening,maf,geno,mind,hwe,father,mother)
+    # inputfile <- RIL_inputfile;datatype <- RIL_datatype;outputfile <- RIL_outputfile;screening <- RIL_screening;father <- RIL_father;mother <- RIL_mother
+
+    # snp_data<-data.table::fread("C:/Users/jinghai/Desktop/binmap/bin_result/RIL.temp.txt",header=T,sep="\t")
+
+    snp_data<-readgeno(inputfile = inputfile,datatype = datatype,outputfile = outputfile,screening = screening,maf = maf,geno = geno,mind = mind,hwe = hwe,father = father,mother = mother)
 
     snp_df<-tidyr::gather(snp_data,key = "line",value = "code",-c("CHR","POS","P1","P2"))
 
@@ -50,10 +54,12 @@ batchCallGeno<-function(inputfile, datatype,outputfile,
     for (i in sample_name){
         for (chr in chrom){
             snp_ind_chr<-dplyr::filter(snp_df,.data$CHR==chr&.data$line==i)
-            wind_geno<-callWindowGeno(snp_ind_chr,window.type,window.size,low,high)
+            #print(snp_ind_chr)
 
-            wind_geno$group<-(wind_geno$group+1)
-            if (fix==TRUE) wind_geno$fix_code<-fixGeno(wind_geno$code,fix.size)
+            wind_geno <- callWindowGeno(x=snp_ind_chr,window.type = window.type,window.size = window.size,low = low,high = high)
+
+            #print(is.null(wind_geno))
+            if (fix==TRUE){wind_geno<-fixGeno(wind_geno,fix.size)}
 
             wind_geno$CHR<-chr
             wind_geno$ind<-i
@@ -63,7 +69,6 @@ batchCallGeno<-function(inputfile, datatype,outputfile,
             }else{
                 write.table(wind_geno,file = paste(outputfile,"wind_geno","txt",sep = "."),sep='\t', row.names = FALSE, col.names =FALSE, quote =FALSE,append = TRUE)
             }
-
         }
     }
     rm(snp_df)
