@@ -9,12 +9,12 @@ readgeno(
   datatype,
   outputfile,
   screening = FALSE,
+  father = "1/1",
+  mother = "0/0",
   maf = NA,
   geno = NA,
   mind = NA,
-  hwe = NA,
-  father = "1/1",
-  mother = "0/0"
+  hwe = NA
 )
 }
 \arguments{
@@ -26,6 +26,10 @@ readgeno(
 
 \item{screening}{a logical value. use plink to screening}
 
+\item{father}{support a character vector or a number that father index of sample}
+
+\item{mother}{support a character vector or a number that father index of sample}
+
 \item{maf}{if screening == T ,it useful}
 
 \item{geno}{if screening == T ,it useful}
@@ -33,10 +37,6 @@ readgeno(
 \item{mind}{if screening == T ,it useful}
 
 \item{hwe}{if screening == T ,it useful}
-
-\item{father}{support a character vector or a number that father index of sample}
-
-\item{mother}{support a character vector or a number that father index of sample}
 }
 \value{
 data.frame

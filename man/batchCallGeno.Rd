@@ -8,13 +8,13 @@ batchCallGeno(
   inputfile,
   datatype,
   outputfile,
+  father = "1/1",
+  mother = "0/0",
   screening = FALSE,
   maf = NA,
   geno = NA,
   mind = NA,
   hwe = NA,
-  father = "1/1",
-  mother = "0/0",
   window.type = "number",
   window.size = 15,
   low = 0.2,
@@ -31,6 +31,10 @@ batchCallGeno(
 
 \item{outputfile}{output file name}
 
+\item{father}{support a character vector or a number that father index of sample}
+
+\item{mother}{support a character vector or a number that father index of sample}
+
 \item{screening}{a logical value. use plink to screening}
 
 \item{maf}{if screening == T ,it useful}
@@ -40,10 +44,6 @@ batchCallGeno(
 \item{mind}{if screening == T ,it useful}
 
 \item{hwe}{if screening == T ,it useful}
-
-\item{father}{support a character vector or a number that father index of sample}
-
-\item{mother}{support a character vector or a number that father index of sample}
 
 \item{window.type}{"number" ,"kb" two types of call window default is number}
 

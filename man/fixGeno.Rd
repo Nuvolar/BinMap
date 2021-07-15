@@ -4,10 +4,10 @@
 \alias{fixGeno}
 \title{Fix potential genotype error}
 \usage{
-fixGeno(x, fix.size = 10)
+fixGeno(t, fix.size = 10)
 }
 \arguments{
-\item{x}{a vector}
+\item{t}{binmap object}
 
 \item{fix.size}{define the neighbor size to fix the error}
 }
