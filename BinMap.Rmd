@@ -1,0 +1,855 @@
+---
+title: "Binmap Genetic analysis"
+author: "Nuvolar"
+date: "2021/6/27"
+output: 
+  html_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# base arguments
+
+The base paraments of the functions.
+
+## base pararments
+
+```{r base paraments,echo=TRUE}
+window.type <- "number" # for bin 's window type
+window.size <- 15       # for bin 's window size
+low <- 0.2              # for bin 's low threshold value
+high <- 0.8             # for bin 's high threshold value
+fix <- TRUE             # for bin 's result fix
+fix.size <- 10          # for bin 's result fix size
+filetype<-"qtl"         # for bin map data file type
+
+library(RColorBrewer)
+col.set<- brewer.pal(12,"Set3")
+physical.map.col <- brewer.pal(12,"Set3")
+genetic.map.col <- brewer.pal(12,"Set3")
+collinear.map.col<-c("red","blue","orange")
+
+genotype.col <- c("black","red","blue","white")
+qtl_map.use.ripple <- TRUE
+qtl_map.function <- "kosambi"
+qtl_map.window <- 4
+qtl_map.verbose<-FALSE
+qtl_operm <- "method1"# "method1","method2"
+qtl_n.perm <- 1000
+
+```
+
+## RILs binmap genetic analysis paraments
+
+```{r RILs paraments,echo=TRUE}
+#Autosomal_PB_diff_g0_1_m0_1,test
+RIL_inputfile <- "E:/测序数据/Autosomal_PB_diff_g0_1_m0_1"
+RIL_datatype  <- "vcf"
+RIL_outputfile<- "C:/Users/jinghai/Desktop/binmap/bin_result/RIL"
+RIL_screening <- FALSE
+RIL_maf  <- NA
+RIL_geno <- NA
+RIL_mind <- NA
+RIL_hwe  <- NA
+RIL_father<-141
+RIL_mother<-140
+
+RIL_smaple_group <- "RIL"
+RIL_crosstype<-"riself"
+RIL_phe<-"E:/phenotype-clean/RIL_qtl_phe.csv"
+```
+
+## Permanent F2 binmap genetic analysis paraments
+
+```{r Permanent F2 paraments,echo=TRUE}
+#Autosomal_PB_diff_g0_1_m0_1_F2,test_F2
+F_inputfile<-"E:/测序数据/Autosomal_PB_diff_g0_1_m0_1_F2"
+F_datatype<-"vcf"
+F_outputfile<-"C:/Users/jinghai/Desktop/binmap/bin_result/F_g0_1_m0_1"
+F_screening<-TRUE
+F_maf  <- 0.1
+F_geno <- 0.1
+F_mind <- NA
+F_hwe  <- NA
+temp_vcf<-data.table::fread("E:/测序数据/Autosomal_PB_diff_g0_1_m0_1.vcf",header = T,sep="\t")
+F_father<-as.list(temp_vcf[,150])[[1]]
+F_mother<-as.list(temp_vcf[,149])[[1]]
+rm(temp_vcf)
+
+F_smaple_group <- "F2"
+F_crosstype<-"f2"
+F_phe<-"E:/phenotype-clean/F2_qtl_phe.csv"
+```
+
+# RILs Binmap Genetic analysis
+
+## RILs Bin Map file generation
+
+```{r RILs genotypefile}
+library(BinMap)
+RIL_bin_geno<-batchCallGeno(inputfile = RIL_inputfile,datatype = RIL_datatype,outputfile = RIL_outputfile,
+              screening = RIL_screening,maf = RIL_maf,geno = RIL_geno,mind = RIL_mind,hwe = RIL_hwe,
+              father = RIL_father,mother = RIL_mother,
+              window.type = window.type,window.size = window.size,low = low,high = high,fix = fix,fix.size = fix.size,
+              filetype = filetype)
+
+head(RIL_bin_geno)
+```
+
+### RILs Bin physical map
+
+```{r RILs Bin physical mapping, echo=FALSE,warning=FALSE}
+RIL_bin_geno <- data.table::fread(paste(RIL_outputfile,"bin_geno","txt",sep="."),header=T,sep="\t")
+RIL_bin_geno<-RIL_bin_geno[,c(4,1,2,3)]
+chr<-unique(RIL_bin_geno$CHR)
+chr_len<-length(chr)
+RIL_bin_geno$pos <- (RIL_bin_geno$start+RIL_bin_geno$end)/2000000
+max.pos<- max(RIL_bin_geno$pos)
+plot(-3:(chr_len+3),-3:(chr_len+3),ylim=c(-3,max.pos+5),type="n")
+lines(c(0.4,0.4),c(0,max.pos),lwd=3);text(0.6,-2,"Mb",adj=1)
+
+for(i in 1:chr_len){
+  sub.chr <- RIL_bin_geno[RIL_bin_geno$CHR==chr[i],]
+  apply(sub.chr,1,function(x){
+    lines(c(i-0.2,i+0.2),c(x[5],x[5]),col=col.set[i])
+  })
+  lines(c(i-0.2,i-0.2),c(min(sub.chr$pos),max(sub.chr$pos)))
+  lines(c(i+0.2,i+0.2),c(min(sub.chr$pos),max(sub.chr$pos)))
+  lines(c(i-0.2,i+0.2),c(min(sub.chr$pos),min(sub.chr$pos)))
+  lines(c(i-0.2,i+0.2),c(max(sub.chr$pos),max(sub.chr$pos)))
+}
+
+for(i in 1:chr_len){
+  text(i,-2,chr[i])
+}
+
+for(i in seq(0,max.pos,10)){
+  lines(c(0.1,0.4),c(i,i),lwd=2);text(-0.1,i,i,adj=1)
+}
+
+for(i in seq(0,max.pos,5)){
+  lines(c(0.2,0.4),c(i,i),lwd=1.5)
+}
+rm(RIL_bin_geno)
+rm(chr)
+rm(chr_len)
+rm(max.pos)
+```
+
+## RILs Bin Genetic map construction with R/qtl
+
+A is come from mother;B is come from father.
+```{r gc1}
+gc()
+library(qtl) 
+```
+
+
+### RILs Bin recombinant point
+
+```{r RILs Bin recombinant point summary, echo=FALSE,warning=FALSE}
+RIL_recombinant_map<-read.cross(format = "csv",file = paste(RIL_outputfile,"recombinant","qtl","csv",sep = "."),genotype=c("A","B","H"),na.strings="NA",alleles=c("A","B"),estimate.map = F,crosstype = RIL_crosstype,)
+summary(RIL_recombinant_map)
+```
+
+```{r RILs Bin recombinant point image, echo=FALSE,warning=FALSE}
+geno.image(RIL_recombinant_map,reorder = FALSE,main = "Genotype data",alternate.chrid = FALSE,col = genotype.col)
+rm(RIL_recombinant_map)
+```
+
+```{r gc2}
+gc()
+```
+
+### RILs Bin map
+
+```{r RILs Bin map, echo=FALSE,warning=FALSE}
+RIL_map<-read.cross(format = "csv",file = paste(RIL_outputfile,"qtl","csv",sep = "."), genotype=c("A","B","H"), na.strings="NA", alleles=c("A","B"), estimate.map = F, crosstype = RIL_crosstype)
+summary(RIL_map)
+```
+
+### RILs Bin map missing
+
+```{r RILs Bin map missing, echo=FALSE,warning=FALSE}
+plotMissing(RIL_map)
+```
+
+### RILs Bin map genotypes by individual
+
+```{r RILs Bin map genotypes by individual, echo=FALSE,warning=FALSE}
+plot(ntyped(RIL_map), ylab="No. typed markers", main="No. genotypes by individual")
+```
+
+### RILs Bin map genotypes by marker
+
+```{r RILs Bin map genotypes by marker, echo=FALSE,warning=FALSE}
+plot(ntyped(RIL_map, "mar"), ylab="No. typed individuals", main="No. genotypes by marker")
+```
+
+### RILs Bin map matching genotypes
+
+```{r RILs Bin map matching genotypes, echo=FALSE,warning=FALSE}
+cg <- comparegeno(RIL_map)
+hist(cg[lower.tri(cg)], breaks=seq(0, 1, len=101), xlab="No. matching genotypes")
+rm(cg)
+```
+
+### RILs Bin map Genotype frequency
+
+```{r RILs Bin map Genotype frequency, echo=FALSE,warning=FALSE}
+g <- pull.geno(RIL_map)
+gfreq <- apply(g, 1, function(a) table(factor(a, levels=1:2)))
+gfreq <- t(t(gfreq) / colSums(gfreq))
+par(mfrow=c(1,2), las=1)
+for(i in 1:2){
+    plot(gfreq[i,], ylab="Genotype frequency", main=c("AA", "BB")[i],
+    ylim=c(0,1))}
+```
+
+### RILs Bin map orderMarkers
+
+```{r RILs Bin map orderMarkers, echo=FALSE,warning=FALSE}
+for(i in 1:length(names(RIL_map[["geno"]]))){
+    print(paste0("ordering markers in chr ",names(RIL_map[["geno"]])[i]))
+    temp_map <- orderMarkers(RIL_map, chr=names(RIL_map[["geno"]])[i],use.ripple = qtl_map.use.ripple, error.prob = 0.0001,window=qtl_map.window,map.function = qtl_map.function, tol = 1e-4, verbose = qtl_map.verbose)
+    gc()
+    temp_window <- (qtl_map.window+1)
+    while(summaryMap(temp_map)[i,4]>20&temp_window<=10){
+        print(paste0("ordering markers in chr ",names(RIL_map[["geno"]])[i]))
+        temp_map <- orderMarkers(temp_map, chr=names(RIL_map[["geno"]])[i],use.ripple = qtl_map.use.ripple, error.prob = 0.0001,window=temp_window, map.function = qtl_map.function, tol = 1e-4, verbose = qtl_map.verbose)
+        gc()
+        temp_window <- temp_window+1
+    }
+    RIL_map <- temp_map
+}
+
+summaryMap(RIL_map)
+
+```
+
+
+
+```{r gc3}
+ RIL_map <- orderMarkers(RIL_map, chr=1,use.ripple = qtl_map.use.ripple, window=5 ,map.function = qtl_map.function, verbose = qtl_map.verbose)
+gc()
+```
+
+
+### RILs Bin map Plot recombination fractions
+
+```{r RILs Bin map Plot recombination fractions, echo=FALSE,warning=FALSE}
+plotRF(RIL_map)
+```
+
+### RILs Bin Genetic mapping
+
+```{r RILs Bin Genetic mapping, echo=FALSE,warning=FALSE}
+chr <- names(RIL_map[["geno"]])
+chr_len<-length(chr)
+length(RIL_map[["geno"]][[1]][["map"]])
+RIL_bin_geno<-as.data.frame(unlist(RIL_map[["geno"]][[1]][["map"]][1:length(RIL_map[["geno"]][[1]][["map"]])]))
+RIL_bin_geno$SNP<-row.names(RIL_bin_geno)
+RIL_bin_geno$CHR<-chr[1]
+names(RIL_bin_geno)<-c("pos","SNP","CHR")
+
+if(chr_len>1){
+    for(i in chr[2:chr_len]){
+        temp_value <- as.data.frame(unlist(RIL_map[["geno"]][[i]][["map"]][1:length(RIL_map[["geno"]][[i]][["map"]])]))
+        temp_value$SNP<-row.names(temp_value)
+        temp_value$CHR<-i
+        names(temp_value)<-c("pos","SNP","CHR")
+        RIL_bin_geno<-rbind(RIL_bin_geno,temp_value)
+    }
+}
+rm(temp_value)
+row.names(RIL_bin_geno)<-c(1:nrow(RIL_bin_geno))
+RIL_bin_geno$CHR<-as.numeric(RIL_bin_geno$CHR)
+
+max.pos<- max(RIL_bin_geno$pos)
+plot(-3:(chr_len+3),-3:(chr_len+3),ylim=c(-3,max.pos+5),type="n")
+lines(c(0.4,0.4),c(0,max.pos),lwd=3);text(0.6,-2,"cM",adj=1)
+
+for(i in 1:chr_len){
+  sub.chr <- RIL_bin_geno[RIL_bin_geno$CHR==chr[i],]
+  apply(sub.chr,1,function(x){
+    lines(c(i-0.2,i+0.2),c(x[1],x[1]),col=genetic.map.col[i])
+  })
+  lines(c(i-0.2,i-0.2),c(min(sub.chr$pos),max(sub.chr$pos)))
+  lines(c(i+0.2,i+0.2),c(min(sub.chr$pos),max(sub.chr$pos)))
+  lines(c(i-0.2,i+0.2),c(min(sub.chr$pos),min(sub.chr$pos)))
+  lines(c(i-0.2,i+0.2),c(max(sub.chr$pos),max(sub.chr$pos)))
+}
+
+for(i in 1:chr_len){
+  text(i,-2,chr[i])
+}
+
+for(i in seq(0,max.pos,10)){
+  lines(c(0.1,0.4),c(i,i),lwd=2);text(-0.1,i,i,adj=1)
+}
+
+for(i in seq(0,max.pos,5)){
+  lines(c(0.2,0.4),c(i,i),lwd=1.5)
+}
+
+temp_value <- read.table(file = paste(RIL_outputfile,"qtl","csv",sep = "."),header = T,sep = ",",check.names = F)
+temp_value <- rbind(temp_value[1,],c("",RIL_bin_geno$pos),temp_value[2:nrow(temp_value),])
+temp_value[2,] <- c("",RIL_bin_geno$pos)
+write.table(temp_value,file = paste(RIL_outputfile,"qtl","csv",sep = "."),sep = ",",append = FALSE,row.names = FALSE,col.names = TRUE,quote = FALSE)
+rm(temp_value)
+
+```
+
+### RILs Bin map collinear 1
+
+```{r RILs Bin map collinear 1, echo=FALSE,warning=FALSE}
+RIL_temp_bin_geno<-data.table::fread(paste(RIL_outputfile,"bin_geno","txt",sep="."),header=T,sep="\t")
+RIL_temp_bin_geno<-RIL_temp_bin_geno[,c(4,1,2,3)]
+RIL_temp_bin_geno$physical<-(RIL_temp_bin_geno$start+RIL_temp_bin_geno$end)/2000000
+RIL_bin_geno<-merge(RIL_temp_bin_geno,RIL_bin_geno,by=c("SNP","CHR"),sort=FALSE)
+rm(RIL_temp_bin_geno)
+max.pos<- max(RIL_bin_geno$pos)
+
+plot(-3:(2*chr_len+3),-3:(2*chr_len+3),ylim=c(-3,max.pos+5),type="n")
+lines(c(0.4,0.4),c(0,max.pos),lwd=3);text(0.6,-2,"cM",adj=1)
+for(i in seq(0,max.pos,10)){
+  lines(c(0.1,0.4),c(i,i),lwd=2);text(-0.1,i,i,adj=1)
+}
+
+for(i in seq(0,max.pos,5)){
+  lines(c(0.2,0.4),c(i,i),lwd=1.5)
+}
+
+for(i in 1:chr_len){
+  sub.chr <- RIL_bin_geno[RIL_bin_geno$CHR==chr[i],]
+  apply(sub.chr,1,function(x){
+    lines(c(2*i-1,2*i-1+0.4),c(x[6],x[6]),col=collinear.map.col[1])  #lg
+    lines(c(2*i,2*i+0.4),c(as.numeric(x[5])*2,as.numeric(x[5])*2),col=collinear.map.col[2]) #chr
+    lines(c(2*i-1+0.4,2*i),c(x[6],as.numeric(x[5])*2),col=collinear.map.col[3])
+  })
+
+  lines(c(2*i-1,2*i-1),c(min(sub.chr$pos),max(sub.chr$pos)))
+  lines(c(2*i-1+0.4,2*i-1+0.4),c(min(sub.chr$pos),max(sub.chr$pos)))
+  lines(c(2*i-1,2*i-1+0.4),c(min(sub.chr$pos),min(sub.chr$pos)))
+  lines(c(2*i-1,2*i-1+0.4),c(max(sub.chr$pos),max(sub.chr$pos)))
+  
+  lines(c(2*i,2*i),c(2*min(sub.chr$physical),2*max(sub.chr$physical)))
+  lines(c(2*i+0.4,2*i+0.4),c(2*min(sub.chr$physical),2*max(sub.chr$physical)))
+  lines(c(2*i,2*i+0.4),c(2*min(sub.chr$physical),2*min(sub.chr$physical)))
+  lines(c(2*i,2*i+0.4),c(2*max(sub.chr$physical),2*max(sub.chr$physical)))
+}
+
+for(i in 1:chr_len){
+  text(2*i-1+0.2,max.pos+5,labels=paste0("Lg",chr[i]),srt=45,adj = 0.5)
+  text(2*i+0.2,max.pos+5,labels=paste0("Chr",chr[i]),srt=45,adj=0.5)
+}
+rm(sub.chr)
+```
+
+
+### RILs Bin map collinear 2
+
+```{r RILs Bin map collinear 2, echo=FALSE,warning=FALSE}
+library(ggplot2)
+library(dplyr)
+temp_value<-RIL_bin_geno%>%
+  group_by(CHR)%>%
+  summarize(count=n(),max_pos=max(pos),max_physical=max(physical))
+
+temp_value$add_genetic<-temp_value$max_pos
+for(i in temp_value$CHR) temp_value[temp_value$CHR==i,5]<-sum(temp_value[temp_value$CHR<=i,3])
+temp_value$add_distance<-temp_value$max_physical
+for(i in temp_value$CHR) temp_value[temp_value$CHR==i,6]<-sum(temp_value[temp_value$CHR<=i,4])
+
+RIL_bin_geno$distance<-RIL_bin_geno$physical
+for(i in unique(RIL_bin_geno$CHR)) RIL_bin_geno[RIL_bin_geno$CHR==i,7] <- RIL_bin_geno[RIL_bin_geno$CHR==i,7] + ifelse(i==1,0,temp_value[i-1,6])
+
+RIL_bin_geno$genetic<-RIL_bin_geno$pos
+for(i in unique(RIL_bin_geno$CHR)) RIL_bin_geno[RIL_bin_geno$CHR==i,8] <- RIL_bin_geno[RIL_bin_geno$CHR==i,8]+ifelse(i==1,0,temp_value[i-1,5])
+
+ggplot(data = RIL_bin_geno,aes(x=distance,y=genetic,color=as.character(RIL_bin_geno$CHR)))+geom_point()+
+  scale_x_continuous(breaks=temp_value$add_distance, minor_breaks=NULL,labels = temp_value$CHR)+
+  scale_y_continuous(breaks=temp_value$add_genetic, minor_breaks=NULL,labels = temp_value$CHR)+
+  labs(x="Chromosome",y="Linkage group")+
+  theme(axis.title.x = element_text(size = 15, family = "myFont", color = "black", face = "bold", vjust = 0.5, hjust = 0.5, angle = 0),
+        axis.title.y = element_text(size = 15, family = "myFont", color = "black", face = "bold", vjust = 0.5, hjust = 0.5, angle = 90),
+        axis.text.x = element_text(size = 12, family = "myFont", color = "black", face = "bold", vjust = 1, hjust = 2, angle = 0),
+        axis.text.y = element_text(size = 12, family = "myFont", color = "black", face = "bold", vjust = 1, hjust = 1, angle = 0),
+        legend.title = element_blank())
+rm(temp_value)
+
+```
+
+
+## RILs Bin map qtl
+
+```{r RILs Bin map qtl, echo=FALSE,warning=FALSE}
+sample_group <- RIL_smaple_group
+
+RIL_map<-read.cross(format = "csvs",genfile = paste(RIL_outputfile,"qtl","csv",sep = "."), phefile = RIL_phe ,genotype=c("A","B","H"), na.strings="NA", alleles=c("A","B"), estimate.map = T, crosstype = RIL_crosstype,map.function = qtl_map.function)
+
+RIL_map <- calc.genoprob(RIL_map,step = 0)
+
+qtl_table <- data.frame(group=NA,datatype=NA,env=NA,trait=NA,chr=NA,pos=NA,left_pos=NA,right_pos=NA,lod=NA,PVE=NA,add=NA,threshold=NA)
+write.table(qtl_table[0,],file = paste(RIL_outputfile,"qtl_result","txt",sep = "."), sep = "\t",append = FALSE,row.names = FALSE,col.names = TRUE,quote = FALSE)
+qtl_table <- qtl_table[0,]
+
+temp_operm <- c()
+if (qtl_operm=="method1"){
+    for(x in 1:(length(RIL_map[["pheno"]])-1)){
+        temp_value<-cim(RIL_map,pheno.col=x, n.marcovar=5, window=5, method="hk", imp.method="imp",n.perm = qtl_n.perm)
+        temp_operm <- c(temp_operm,summary(temp_value)[1,1])
+    }
+    temp_value[1:qtl_n.perm] <- mean(temp_operm)
+    temp_operm <- temp_value
+}
+
+for(x in 1:(length(RIL_map[["pheno"]])-1)){
+    x <- 2
+    temp_table <- qtl_table[0,]
+    temp_group <- sample_group
+    temp_name <- names(RIL_map[["pheno"]])[x]
+    temp_datatype <- strsplit(temp_name,"_")[[1]][2]
+    temp_env <- strsplit(temp_name,"_")[[1]][3]
+    temp_trait <- strsplit(temp_name,"_")[[1]][4]
+    temp_out.cim <- cim(RIL_map,pheno.col=x, n.marcovar=5, window=5, method="hk", imp.method="imp", error.prob=0.0001)
+    
+    if(qtl_operm=="method2") temp_operm<-cim(RIL_map,pheno.col=x, n.marcovar=5, window=5, method="hk", imp.method="imp",n.perm = qtl_n.perm)
+
+    jpeg(paste0(RIL_outputfile,".",temp_name,".png"),width=600,height=300)
+    print(plot(temp_out.cim)+add.threshold(temp_out.cim,alpha = 0.05,perms = temp_operm))
+    dev.off()
+    temp_out.summary <- summary(temp_out.cim,perm=temp_operm,alpha=0.05,format = "tabByChr",ci.function = "lodint",pvalues=TRUE)
+    if(length(temp_out.summary[["lod"]][["chr"]])==0){
+        temp_table <- data.frame(group=sample_group,datatype=temp_datatype,env=temp_env,trait=temp_trait,chr=NA,pos=NA,left_pos=NA,right_pos=NA,lod=NA,PVE=NA,add=NA,threshold=summary(temp_operm)[1,1])
+        write.table(temp_table,file = paste(RIL_outputfile,"qtl_result","txt",sep = "."), sep = "\t",append = TRUE,row.names = FALSE,col.names = FALSE,quote = FALSE)
+        qtl_table <- rbind(qtl_table,temp_table)
+        next
+    }
+    temp_qtl <- makeqtl(RIL_map, chr=temp_out.summary[["lod"]][["chr"]], pos=temp_out.summary[["lod"]][["pos"]], what="prob") 
+    temp_out.fq <- fitqtl(RIL_map, qtl=temp_qtl, method="hk",get.ests = TRUE)
+    if(temp_out.fq[["result.full"]][1,7]>0.05){
+        temp_table <- data.frame(group=sample_group,datatype=temp_datatype,env=temp_env,trait=temp_trait,chr=temp_out.summary[["lod"]][["chr"]][1],pos=temp_out.summary[["lod"]][["pos"]][1],left_pos=NA,right_pos=NA,lod=temp_out.summary[["lod"]][["lod"]][1],PVE=temp_out.fq[["result.full"]][1,5],add=NA,threshold=summary(temp_operm)[1,1])
+        write.table(temp_table,file = paste(RIL_outputfile,"qtl_result","txt",sep = "."), sep = "\t",append = TRUE,row.names = FALSE,col.names = FALSE,quote = FALSE)
+        qtl_table <- rbind(qtl_table,temp_table)
+        next
+    }
+    temp_len <- length(temp_out.summary[["lod"]][["chr"]])
+    for(i in 1:temp_len){
+        temp_value <- temp_table[0,]
+        temp_value[1,1] <- sample_group
+        temp_value[1,2] <- temp_datatype
+        temp_value[1,3] <- temp_env
+        temp_value[1,4] <- temp_trait
+        temp_value[1,5] <- temp_out.summary[["lod"]][["chr"]][i]
+        temp_value[1,6] <- temp_out.summary[["lod"]][["pos"]][i]
+        temp_value[1,7] <- temp_out.summary[["lod"]][["ci.low"]][i]
+        temp_value[1,8] <- temp_out.summary[["lod"]][["ci.high"]][i]
+        temp_value[1,9] <- temp_out.summary[["lod"]][["lod"]][i]
+        temp_value[1,10] <- ifelse(temp_len==1,temp_out.fq[["result.full"]][1,5],temp_out.fq[["result.drop"]][i,4])
+        temp_value[1,11] <- (temp_out.fq[["ests"]][["ests"]][[i+1]]/2)
+        temp_value[1,12] <- summary(temp_operm)[1,1]
+        temp_table <- rbind(temp_table,temp_value)
+        
+        temp_mar <- find.marker(RIL_map, chr=temp_value[1,5], pos=temp_value[1,6] )
+        jpeg(paste0(RIL_outputfile,".",temp_name,temp_value[1,5],".",temp_value[1,6],"_plotPXG.png"),width=800,height=800)
+        print(plotPXG(RIL_map, marker=temp_mar))
+        dev.off()
+        jpeg(paste0(RIL_outputfile,".",temp_name,temp_value[1,5],".",temp_value[1,6],"_effectplot.png"),width=800,height=800)
+        print(effectplot(RIL_map, mname1=temp_mar))
+        dev.off()
+    }
+    write.table(temp_table,file = paste(RIL_outputfile,"qtl_result","txt",sep = "."), sep = "\t",append = TRUE,row.names = FALSE,col.names = FALSE,quote = FALSE)
+    qtl_table <- rbind(qtl_table,temp_table)
+}
+
+```
+```{r gc4}
+rm(RIL_map)
+gc()
+```
+
+
+# Permanent F2 Binmap Genetic analysis
+
+## Permanent F2 Bin Map file generation
+
+```{r Permanent F2 genotypefile}
+library(BinMap)
+F_bin_geno<-batchCallGeno(inputfile = F_inputfile,datatype = F_datatype,outputfile = F_outputfile,
+              screening = F_screening,maf = F_maf,geno = F_geno,mind = F_mind,hwe = F_hwe,
+              father = F_father,mother = F_mother,
+              window.type = window.type,window.size = window.size,low = low,high = high,fix = fix,fix.size = fix.size,
+              filetype = filetype)
+
+head(F_bin_geno)
+```
+
+### Permanent F2 Bin physical map
+
+```{r Permanent F2 Bin physical mapping, echo=FALSE,warning=FALSE}
+F_bin_geno <- data.table::fread(paste(F_outputfile,"bin_geno","txt",sep="."),header=T,sep="\t")
+F_bin_geno<-F_bin_geno[,c(4,1,2,3)]
+chr<-unique(F_bin_geno$CHR)
+chr_len<-length(chr)
+F_bin_geno$pos <- (F_bin_geno$start+F_bin_geno$end)/2000000
+max.pos<- max(F_bin_geno$pos)
+plot(-3:(chr_len+3),-3:(chr_len+3),ylim=c(-3,max.pos+5),type="n")
+lines(c(0.4,0.4),c(0,max.pos),lwd=3);text(0.6,-2,"Mb",adj=1)
+
+for(i in 1:chr_len){
+  sub.chr <- F_bin_geno[F_bin_geno$CHR==chr[i],]
+  apply(sub.chr,1,function(x){
+    lines(c(i-0.2,i+0.2),c(x[5],x[5]),col=col.set[i])
+  })
+  lines(c(i-0.2,i-0.2),c(min(sub.chr$pos),max(sub.chr$pos)))
+  lines(c(i+0.2,i+0.2),c(min(sub.chr$pos),max(sub.chr$pos)))
+  lines(c(i-0.2,i+0.2),c(min(sub.chr$pos),min(sub.chr$pos)))
+  lines(c(i-0.2,i+0.2),c(max(sub.chr$pos),max(sub.chr$pos)))
+}
+
+for(i in 1:chr_len){
+  text(i,-2,chr[i])
+}
+
+for(i in seq(0,max.pos,10)){
+  lines(c(0.1,0.4),c(i,i),lwd=2);text(-0.1,i,i,adj=1)
+}
+
+for(i in seq(0,max.pos,5)){
+  lines(c(0.2,0.4),c(i,i),lwd=1.5)
+}
+rm(F_bin_geno)
+rm(chr)
+rm(chr_len)
+rm(max.pos)
+```
+
+## Permanent F2 Bin Genetic map construction with R/qtl
+
+```{r gc5}
+library(qtl) 
+gc()
+```
+
+### Permanent F2 Bin recombinant point
+
+```{r Permanent F2 Bin recombinant point summary, echo=FALSE,warning=FALSE}
+F_recombinant_map<-read.cross(format = "csv",file = paste(F_outputfile,"recombinant","qtl","csv",sep = "."),genotype=c("A","B","H"),na.strings="NA",alleles=c("A","B"),estimate.map = F,crosstype = F_crosstype,)
+summary(F_recombinant_map)
+```
+
+```{r Permanent F2 Bin recombinant point image, echo=FALSE,warning=FALSE}
+geno.image(F_recombinant_map,reorder = FALSE,main = "Genotype data",alternate.chrid = FALSE,col = genotype.col)
+rm(F_recombinant_map)
+```
+
+```{r gc6}
+gc()
+```
+
+### Permanent F2  Bin map
+
+```{r Permanent F2 Bin map, echo=FALSE,warning=FALSE}
+F_map<-read.cross(format = "csv",file = paste(F_outputfile,"qtl","csv",sep = "."), genotype=c("A","B","H"), na.strings="NA", alleles=c("A","B"), estimate.map = F, crosstype = F_crosstype)
+summary(F_map)
+```
+
+### Permanent F2 Bin map missing
+
+```{r Permanent F2 Bin map missing, echo=FALSE,warning=FALSE}
+plotMissing(F_map)
+```
+
+### Permanent F2 Bin map genotypes by individual
+
+```{r Permanent F2 Bin map genotypes by individual, echo=FALSE,warning=FALSE}
+plot(ntyped(F_map), ylab="No. typed markers", main="No. genotypes by individual")
+```
+
+### Permanent F2 Bin map genotypes by marker
+
+```{r Permanent F2 Bin map genotypes by marker, echo=FALSE,warning=FALSE}
+plot(ntyped(F_map, "mar"), ylab="No. typed individuals", main="No. genotypes by marker")
+```
+
+### Permanent F2 Bin map matching genotypes
+
+```{r Permanent F2 Bin map matching genotypes, echo=FALSE,warning=FALSE}
+cg <- comparegeno(F_map)
+hist(cg[lower.tri(cg)], breaks=seq(0, 1, len=101), xlab="No. matching genotypes")
+rm(cg)
+```
+
+### Permanent F2 Bin map Genotype frequency
+
+```{r Permanent F2 Bin map Genotype frequency, echo=FALSE,warning=FALSE}
+g <- pull.geno(F_map)
+gfreq <- apply(g, 1, function(a) table(factor(a, levels=1:3)))
+gfreq <- t(t(gfreq) / colSums(gfreq))
+par(mfrow=c(1,3), las=1)
+for(i in 1:3){
+    plot(gfreq[i,], ylab="Genotype frequency", main=c("AA", "AB","BB")[i],
+    ylim=c(0,1))}
+```
+
+### Permanent F2 Bin map orderMarkers
+
+```{r Permanent F2 Bin map orderMarkers, echo=FALSE,warning=FALSE}
+
+for(i in 1:length(names(F_map[["geno"]]))){
+    print(paste0("ordering markers in chr ",names(F_map[["geno"]])[i]))
+    temp_map <- orderMarkers(F_map, chr=names(F_map[["geno"]])[i],use.ripple = qtl_map.use.ripple, error.prob = 0.0001,window=qtl_map.window,map.function = qtl_map.function, tol = 1e-4, verbose = qtl_map.verbose)
+    gc()
+    temp_window <- (qtl_map.window+1)
+    while(summaryMap(temp_map)[i,4]>20&temp_window<=7){
+        print(paste0("ordering markers in chr ",names(F_map[["geno"]])[i]))
+        temp_map <- orderMarkers(temp_map, chr=names(F_map[["geno"]])[i],use.ripple = qtl_map.use.ripple, error.prob = 0.0001,window=temp_window, map.function = qtl_map.function, tol = 1e-4, verbose = qtl_map.verbose)
+        gc()
+        temp_window <- temp_window+1
+    }
+    F_map <- temp_map
+}
+
+
+summaryMap(F_map)
+```
+
+```{r gc7}
+gc()
+```
+
+### Permanent F2 Bin map Plot recombination fractions
+
+```{r Permanent F2 Bin map Plot recombination fractions, echo=FALSE,warning=FALSE}
+plotRF(F_map)
+```
+
+### Permanent F2 Bin Genetic mapping
+
+```{r Permanent F2 Bin Genetic mapping, echo=FALSE,warning=FALSE}
+chr <- names(F_map[["geno"]])
+chr_len<-length(chr)
+length(F_map[["geno"]][[1]][["map"]])
+F_bin_geno<-as.data.frame(unlist(F_map[["geno"]][[1]][["map"]][1:length(F_map[["geno"]][[1]][["map"]])]))
+F_bin_geno$SNP<-row.names(F_bin_geno)
+F_bin_geno$CHR<-chr[1]
+names(F_bin_geno)<-c("pos","SNP","CHR")
+
+if(chr_len>1){
+    for(i in chr[2:chr_len]){
+        temp_value <- as.data.frame(unlist(RIL_map[["geno"]][[i]][["map"]][1:length(RIL_map[["geno"]][[i]][["map"]])]))
+        temp_value$SNP<-row.names(temp_value)
+        temp_value$CHR<-i
+        names(temp_value)<-c("pos","SNP","CHR")
+        RIL_bin_geno<-rbind(RIL_bin_geno,temp_value)
+    }
+}
+rm(temp_value)
+row.names(F_bin_geno)<-c(1:nrow(F_bin_geno))
+F_bin_geno$CHR<-as.numeric(F_bin_geno$CHR)
+
+max.pos<- max(F_bin_geno$pos)
+plot(-3:(chr_len+3),-3:(chr_len+3),ylim=c(-3,max.pos+5),type="n")
+lines(c(0.4,0.4),c(0,max.pos),lwd=3);text(0.6,-2,"cM",adj=1)
+
+for(i in 1:chr_len){
+  sub.chr <- F_bin_geno[F_bin_geno$CHR==chr[i],]
+  apply(sub.chr,1,function(x){
+    lines(c(i-0.2,i+0.2),c(x[1],x[1]),col=genetic.map.col[i])
+  })
+  lines(c(i-0.2,i-0.2),c(min(sub.chr$pos),max(sub.chr$pos)))
+  lines(c(i+0.2,i+0.2),c(min(sub.chr$pos),max(sub.chr$pos)))
+  lines(c(i-0.2,i+0.2),c(min(sub.chr$pos),min(sub.chr$pos)))
+  lines(c(i-0.2,i+0.2),c(max(sub.chr$pos),max(sub.chr$pos)))
+}
+
+for(i in 1:chr_len){
+  text(i,-2,chr[i])
+}
+
+for(i in seq(0,max.pos,10)){
+  lines(c(0.1,0.4),c(i,i),lwd=2);text(-0.1,i,i,adj=1)
+}
+
+for(i in seq(0,max.pos,5)){
+  lines(c(0.2,0.4),c(i,i),lwd=1.5)
+}
+
+temp_value <- read.table(file = paste(F_outputfile,"qtl","csv",sep = "."),header = T,sep = ",",check.names = F)
+temp_value <- rbind(temp_value[1,],c("",F_bin_geno$pos),temp_value[2:nrow(temp_value),])
+temp_value[2,] <- c("",F_bin_geno$pos)
+write.table(temp_value,file = paste(F_outputfile,"qtl","csv",sep = "."),sep = ",",append = FALSE,row.names = FALSE,col.names = TRUE,quote = FALSE)
+rm(temp_value)
+
+```
+
+### Permanent F2 Bin map collinear 1
+
+```{r Permanent F2 Bin map collinear 1, echo=FALSE,warning=FALSE}
+F_temp_bin_geno<-data.table::fread(paste(F_outputfile,"bin_geno","txt",sep="."),header=T,sep="\t")
+F_temp_bin_geno<-F_temp_bin_geno[,c(4,1,2,3)]
+F_temp_bin_geno$physical<-(F_temp_bin_geno$start+F_temp_bin_geno$end)/2000000
+F_bin_geno<-merge(F_temp_bin_geno,F_bin_geno,by=c("SNP","CHR"),sort=FALSE)
+rm(F_temp_bin_geno)
+max.pos<- max(F_bin_geno$pos)
+
+plot(-3:(2*chr_len+3),-3:(2*chr_len+3),ylim=c(-3,max.pos+5),type="n")
+lines(c(0.4,0.4),c(0,max.pos),lwd=3);text(0.6,-2,"cM",adj=1)
+for(i in seq(0,max.pos,10)){
+  lines(c(0.1,0.4),c(i,i),lwd=2);text(-0.1,i,i,adj=1)
+}
+
+for(i in seq(0,max.pos,5)){
+  lines(c(0.2,0.4),c(i,i),lwd=1.5)
+}
+
+for(i in 1:chr_len){
+  sub.chr <- F_bin_geno[F_bin_geno$CHR==chr[i],]
+  apply(sub.chr,1,function(x){
+    lines(c(2*i-1,2*i-1+0.4),c(x[6],x[6]),col=collinear.map.col[1])  #lg
+    lines(c(2*i,2*i+0.4),c(as.numeric(x[5])*2,as.numeric(x[5])*2),col=collinear.map.col[2]) #chr
+    lines(c(2*i-1+0.4,2*i),c(x[6],as.numeric(x[5])*2),col=collinear.map.col[3])
+  })
+
+  lines(c(2*i-1,2*i-1),c(min(sub.chr$pos),max(sub.chr$pos)))
+  lines(c(2*i-1+0.4,2*i-1+0.4),c(min(sub.chr$pos),max(sub.chr$pos)))
+  lines(c(2*i-1,2*i-1+0.4),c(min(sub.chr$pos),min(sub.chr$pos)))
+  lines(c(2*i-1,2*i-1+0.4),c(max(sub.chr$pos),max(sub.chr$pos)))
+  
+  lines(c(2*i,2*i),c(2*min(sub.chr$physical),2*max(sub.chr$physical)))
+  lines(c(2*i+0.4,2*i+0.4),c(2*min(sub.chr$physical),2*max(sub.chr$physical)))
+  lines(c(2*i,2*i+0.4),c(2*min(sub.chr$physical),2*min(sub.chr$physical)))
+  lines(c(2*i,2*i+0.4),c(2*max(sub.chr$physical),2*max(sub.chr$physical)))
+}
+
+for(i in 1:chr_len){
+  text(2*i-1+0.2,max.pos+5,labels=paste0("Lg",chr[i]),srt=45,adj = 0.5)
+  text(2*i+0.2,max.pos+5,labels=paste0("Chr",chr[i]),srt=45,adj=0.5)
+}
+rm(sub.chr)
+```
+
+### Permanent F2 Bin map collinear 2
+
+```{r Permanent F2 Bin map collinear 2, echo=FALSE,warning=FALSE}
+library(ggplot2)
+library(dplyr)
+temp_value<-F_bin_geno%>%
+  group_by(CHR)%>%
+  summarize(count=n(),max_pos=max(pos),max_physical=max(physical))
+
+temp_value$add_genetic<-temp_value$max_pos
+for(i in temp_value$CHR) temp_value[temp_value$CHR==i,5]<-sum(temp_value[temp_value$CHR<=i,3])
+temp_value$add_distance<-temp_value$max_physical
+for(i in temp_value$CHR) temp_value[temp_value$CHR==i,6]<-sum(temp_value[temp_value$CHR<=i,4])
+
+F_bin_geno$distance<-F_bin_geno$physical
+for(i in unique(F_bin_geno$CHR)) F_bin_geno[F_bin_geno$CHR==i,7] <- F_bin_geno[F_bin_geno$CHR==i,7] + ifelse(i==1,0,temp_value[i-1,6])
+
+F_bin_geno$genetic<-F_bin_geno$pos
+for(i in unique(F_bin_geno$CHR)) F_bin_geno[F_bin_geno$CHR==i,8] <- F_bin_geno[F_bin_geno$CHR==i,8]+ifelse(i==1,0,temp_value[i-1,5])
+
+ggplot(data = F_bin_geno,aes(x=distance,y=genetic,color=as.character(F_bin_geno$CHR)))+geom_point()+
+  scale_x_continuous(breaks=temp_value$add_distance, minor_breaks=NULL,labels = temp_value$CHR)+
+  scale_y_continuous(breaks=temp_value$add_genetic, minor_breaks=NULL,labels = temp_value$CHR)+
+  labs(x="Chromosome",y="Linkage group")+
+  theme(axis.title.x = element_text(size = 15, family = "myFont", color = "black", face = "bold", vjust = 0.5, hjust = 0.5, angle = 0),
+        axis.title.y = element_text(size = 15, family = "myFont", color = "black", face = "bold", vjust = 0.5, hjust = 0.5, angle = 90),
+        axis.text.x = element_text(size = 12, family = "myFont", color = "black", face = "bold", vjust = 1, hjust = 2, angle = 0),
+        axis.text.y = element_text(size = 12, family = "myFont", color = "black", face = "bold", vjust = 1, hjust = 1, angle = 0),
+        legend.title = element_blank())
+rm(temp_value)
+
+```
+
+## Permanent F2 Bin map qtl
+
+```{r Permanent F2 Bin map qtl, echo=FALSE,warning=FALSE}
+
+sample_group <- F_smaple_group
+
+F_map<-read.cross(format = "csvs",genfile = paste(F_outputfile,"qtl","csv",sep = "."), phefile = F_phe ,genotype=c("A","B","H"), na.strings="NA", alleles=c("A","B"), estimate.map = T, crosstype = F_crosstype,map.function = qtl_map.function)
+
+F_map <- calc.genoprob(F_map,step = 0)
+
+qtl_table <- data.frame(group=NA,datatype=NA,env=NA,trait=NA,chr=NA,pos=NA,left_pos=NA,right_pos=NA,lod=NA,PVE=NA,add=NA,threshold=NA)
+write.table(qtl_table[0,],file = paste(F_outputfile,"qtl_result","txt",sep = "."), sep = "\t",append = FALSE,row.names = FALSE,col.names = TRUE,quote = FALSE)
+qtl_table <- qtl_table[0,]
+
+temp_operm <- c()
+if (qtl_operm=="method1"){
+    for(x in 1:(length(RIL_map[["pheno"]])-1)){
+        temp_value<-cim(RIL_map,pheno.col=x, n.marcovar=5, window=5, method="hk", imp.method="imp",n.perm = qtl_n.perm)
+        temp_operm <- c(temp_operm,summary(temp_value)[1,1])
+    }
+    temp_value[1:qtl_n.perm] <- mean(temp_operm)
+    temp_operm <- temp_value
+}
+
+for(x in 1:(length(F_map[["pheno"]])-1)){
+    # x <- 2
+    temp_table <- qtl_table[0,]
+    temp_group <- sample_group
+    temp_name <- names(F_map[["pheno"]])[x]
+    temp_datatype <- strsplit(temp_name,"_")[[1]][2]
+    temp_env <- strsplit(temp_name,"_")[[1]][3]
+    temp_trait <- strsplit(temp_name,"_")[[1]][4]
+    temp_out.cim <- cim(F_map,pheno.col=x, n.marcovar=5, window=5, method="hk", imp.method="imp", error.prob=0.0001)
+    if(qtl_operm=="method2") temp_operm<-cim(RIL_map,pheno.col=x, n.marcovar=5, window=5, method="hk", imp.method="imp",n.perm = qtl_n.perm)
+    jpeg(paste0(F_outputfile,temp_name,".png"),width=600,height=300)
+    print(plot(temp_out.cim)+add.threshold(temp_out.cim,alpha = 0.05,perms = temp_operm))
+    dev.off()
+    temp_out.summary <- summary(temp_out.cim,perm=temp_operm,alpha=0.05,format = "tabByChr",ci.function = "lodint",pvalues=TRUE)
+    if(length(temp_out.summary[["lod"]][["chr"]])==0){
+        temp_table <- data.frame(group=sample_group,datatype=temp_datatype,env=temp_env,trait=temp_trait,chr=NA,pos=NA,left_pos=NA,right_pos=NA,lod=NA,PVE=NA,add=NA,threshold=summary(temp_operm)[1,1])
+        write.table(temp_table,file = paste(F_outputfile,"qtl_result","txt",sep = "."), sep = "\t",append = TRUE,row.names = FALSE,col.names = FALSE,quote = FALSE)
+        qtl_table <- rbind(qtl_table,temp_table)
+        next
+    }
+    temp_qtl <- makeqtl(RIL_map, chr=temp_out.summary[["lod"]][["chr"]], pos=temp_out.summary[["lod"]][["pos"]], what="prob") 
+    temp_out.fq <- fitqtl(RIL_map, qtl=temp_qtl, method="hk",get.ests = TRUE)
+    if(temp_out.fq[["result.full"]][1,7]>0.05){
+        temp_table <- data.frame(group=sample_group,datatype=temp_datatype,env=temp_env,trait=temp_trait,chr=temp_out.summary[["lod"]][["chr"]][1],pos=temp_out.summary[["lod"]][["pos"]][1],left_pos=NA,right_pos=NA,lod=temp_out.summary[["lod"]][["lod"]][1],PVE=temp_out.fq[["result.full"]][1,5],add=NA,threshold=summary(temp_operm)[1,1])
+        write.table(temp_table,file = paste(F_outputfile,"qtl_result","txt",sep = "."), sep = "\t",append = TRUE,row.names = FALSE,col.names = FALSE,quote = FALSE)
+        qtl_table <- rbind(qtl_table,temp_table)
+        next
+    }
+    temp_len <- length(temp_out.summary[["lod"]][["chr"]])
+    for(i in 1:temp_len){
+        temp_value <- temp_table[0,]
+        temp_value[1,1] <- sample_group
+        temp_value[1,2] <- temp_datatype
+        temp_value[1,3] <- temp_env
+        temp_value[1,4] <- temp_trait
+        temp_value[1,5] <- temp_out.summary[["lod"]][["chr"]][i]
+        temp_value[1,6] <- temp_out.summary[["lod"]][["pos"]][i]
+        temp_value[1,7] <- temp_out.summary[["lod"]][["ci.low"]][i]
+        temp_value[1,8] <- temp_out.summary[["lod"]][["ci.high"]][i]
+        temp_value[1,9] <- temp_out.summary[["lod"]][["lod"]][i]
+        temp_value[1,10] <- ifelse(temp_len==1,temp_out.fq[["result.full"]][1,5],temp_out.fq[["result.drop"]][i,4])
+        temp_value[1,11] <- (temp_out.fq[["ests"]][["ests"]][[2i+1]]/2)
+        temp_value[1,12] <- summary(temp_operm)[1,1]
+        temp_table <- rbind(temp_table,temp_value)
+        
+        temp_mar <- find.marker(F_map, chr=temp_value[1,5], pos=temp_value[1,6] )
+        jpeg(paste0(F_outputfile,".",temp_name,temp_value[1,5],".",temp_value[1,6],"_plotPXG.png"),width=800,height=800)
+        print(plotPXG(F_map, marker=temp_mar))
+        dev.off()
+        jpeg(paste0(F_outputfile,".",temp_name,temp_value[1,5],".",temp_value[1,6],"_effectplot.png"),width=800,height=800)
+        print(effectplot(F_map, mname1=temp_mar))
+        dev.off()
+    }
+    write.table(temp_table,file = paste(F_outputfile,"qtl_result","txt",sep = "."), sep = "\t",append = TRUE,row.names = FALSE,col.names = FALSE,quote = FALSE)
+    qtl_table <- rbind(qtl_table,temp_table)
+}
+
+```
+
+```{r gc8}
+rm(F_map)
+gc()
+```
