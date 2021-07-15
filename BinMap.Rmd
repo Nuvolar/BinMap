@@ -645,7 +645,7 @@ names(F_bin_geno)<-c("pos","SNP","CHR")
 
 if(chr_len>1){
     for(i in chr[2:chr_len]){
-        temp_value <- as.data.frame(unlist(F_map[["geno"]][[i]][["map"]][1:length(RIL_map[["geno"]][[i]][["map"]])]))
+        temp_value <- as.data.frame(unlist(F_map[["geno"]][[i]][["map"]][1:length(F_map[["geno"]][[i]][["map"]])]))
         temp_value$SNP<-row.names(temp_value)
         temp_value$CHR<-i
         names(temp_value)<-c("pos","SNP","CHR")
